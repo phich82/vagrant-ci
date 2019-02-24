@@ -23,22 +23,30 @@ class Welcome extends CI_Controller
     {
         $this->load->database();
 
-        $params = [
-            'company_code' => 'c00001',
-            'store_code'   => '005',
-            'order_id'     => '0123456789',
-            'first_name'   => 'Jhp',
-            'last_name'    => 'Phich',
-            'qty'          => 1,
-            'updated_at'   => date('Ymd H:i:s')
-        ];
-        $conditions = [
-            'company_code' => 'c00001',
-            'store_code'   => '005',
-            'order_id'     => '0123456789'
-        ];
+        $s = microtime(true); // return seconds
+        $out = [];
+        for ($i=1; $i < 1000; $i++) {
+            $orderId = '0123456'.substr('000'.$i, -3);
+            $params = [
+                'company_code' => 'c00001',
+                'store_code'   => '001',
+                'order_id'     => $orderId,
+                'first_name'   => 'Jhp',
+                'last_name'    => 'Phich',
+                'qty'          => $i,
+                'updated_at'   => date('Ymd H:i:s')
+            ];
+            $conditions = [
+                'company_code' => 'c00001',
+                'store_code'   => '001',
+                'order_id'     => $orderId
+            ];
+            $out[] = $this->updateOrInsert('orders', $params, $conditions);
+        }
+        $e = microtime(true); // return seconds
+        $spend = ($e - $s);
 
-        var_dump($this->updateOrInsert('orders', $params, $conditions), $this->db->error());
+        var_dump('Executed: '.$spend, $out, $this->db->error());
 
         $this->load->view('welcome_message');
     }
@@ -47,6 +55,21 @@ class Welcome extends CI_Controller
     {
         $this->load->database();
         $this->db->query($this->buildSQL($table, $params, $conditions, $this->db));
+        return $this->db->affected_rows();
+    }
+
+    public function updateOrInsert1($table, $params = [], $conditions = [])
+    {
+        $this->load->database();
+        $exist = $this->db->where($conditions)->get($table);
+        $existRow = !empty($exist) ? $exist->result_array() : [];
+
+        if (!empty($existRow)) {
+            $this->db->update($table, $params, $conditions);
+            return $this->db->affected_rows();
+        }
+
+        $this->db->insert($table, $params);
         return $this->db->affected_rows();
     }
 
