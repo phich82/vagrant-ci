@@ -1,0 +1,1 @@
+{"virtualbox":{"/var/www/html":{"guestpath":"/var/www/html","hostpath":"C:/Users/huynhphat/Desktop/web/learning/php/CodeIgniter/vagrant-ci","disabled":false,"__vagrantfile":true},"/vagrant":{"guestpath":"/vagrant","hostpath":"C:/Users/huynhphat/Desktop/web/learning/php/CodeIgniter/vagrant-ci/vagrant","disabled":false,"__vagrantfile":true}}}
