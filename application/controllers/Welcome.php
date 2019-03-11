@@ -22,10 +22,10 @@ class Welcome extends CI_Controller
     public function index()
     {
         $this->load->database();
-
+        //*
         $s = microtime(true); // return seconds
         $out = [];
-        for ($i=1; $i < 1000; $i++) {
+        for ($i=1; $i < 20000; $i++) {
             $orderId = '0123456'.substr('000'.$i, -3);
             $params = [
                 'company_code' => 'c00001',
@@ -46,8 +46,17 @@ class Welcome extends CI_Controller
         $e = microtime(true); // return seconds
         $spend = ($e - $s);
 
-        var_dump('Executed: '.$spend, $out, $this->db->error());
+        //var_dump('Executed: '.round($spend, 2).' second(s)', $out, $this->db->error());
+        var_dump('Executed: '.round($spend, 2).' second(s)');
+        //*/
 
+        /* insert batch
+        $s = microtime(true); // return seconds
+        $result = $this->insertTestData(100000);
+        $e = microtime(true); // return seconds
+        $spend = ($e - $s);
+        var_dump('Executed: '.round($spend, 2).' second(s)', $result, $this->db->error());
+        */
         $this->load->view('welcome_message');
     }
 
@@ -166,5 +175,63 @@ class Welcome extends CI_Controller
 		insert into $table (".implode(', ', $fieldsInsert).") 
 		select ".implode(', ', $valuesInsert)." 
 		where not exists (select 1 from $upsert $upsertWhere)";
+    }
+
+    public function insertTestData($RowsInserted = 100)
+    {
+        /* Prepare some fake data (10000 rows, 40,000 values total) */
+        $rows = array_fill(0, $RowsInserted, ['34239', '102438', "Test Message!", date('Y-m-d H:i:s')]);
+        $columns = ['handle', 'name', 'bio', 'created_at'];
+        return $this->insert_rows('demos', $columns, $rows);
+    }
+
+    /**
+     * A method to facilitate easy bulk inserts into a given table.
+     * @param string $table_name
+     * @param array $column_names A basic array containing the column names of the data we'll be inserting
+     * @param array $rows A two dimensional array of rows to insert into the database.
+     * @param bool $escape Whether or not to escape data that will be inserted. Default = true.
+     */
+    public function insert_rows($table_name, $column_names, $rows, $escape = true)
+    {
+        /* Build a list of column names */
+        array_walk($column_names, [$this, 'prepare_column_name']);
+        $columns = implode(',', $column_names);
+
+        /* Escape each value of the array for insertion into the SQL string */
+        if ($escape) {
+            array_walk_recursive($rows, [$this, 'escape_value']);
+        }
+
+        /* Collapse each rows of values into a single string */
+        $length = count($rows);
+        for ($i = 0; $i < $length; $i++) {
+            $rows[$i] = implode(',', $rows[$i]);
+        }
+
+        /* Collapse all the rows into something that looks like
+         *  (r1_val_1, r1_val_2, ..., r1_val_n),
+         *  (r2_val_1, r2_val_2, ..., r2_val_n),
+         *  ...
+         *  (rx_val_1, rx_val_2, ..., rx_val_n)
+         * Stored in $values
+         */
+        $values = "(".implode('), (', $rows).")";
+
+        $sql = "INSERT INTO $table_name ($columns) VALUES $values";
+
+        return $this->db->simple_query($sql);
+    }
+
+    private  function escape_value(&$value)
+    {
+        if (is_string($value)) {
+            $value = $this->escape($value);
+        }
+    }
+
+    private function prepare_column_name(&$name)
+    {
+        $name = "$name";
     }
 }
