@@ -22,7 +22,7 @@ class Welcome extends CI_Controller
     public function index()
     {
         $this->load->database();
-        //*
+        /*
         $s = microtime(true); // return seconds
         $out = [];
         for ($i=1; $i < 20000; $i++) {
@@ -48,15 +48,15 @@ class Welcome extends CI_Controller
 
         //var_dump('Executed: '.round($spend, 2).' second(s)', $out, $this->db->error());
         var_dump('Executed: '.round($spend, 2).' second(s)');
-        //*/
+        */
 
-        /* insert batch
+        //* insert batch
         $s = microtime(true); // return seconds
-        $result = $this->insertTestData(100000);
+        $this->insertTestData(1000000);
         $e = microtime(true); // return seconds
         $spend = ($e - $s);
-        var_dump('Executed: '.round($spend, 2).' second(s)', $result, $this->db->error());
-        */
+        var_dump('Executed: '.round($spend, 2).' second(s)', $this->db->error());
+        //*/
         $this->load->view('welcome_message');
     }
 
@@ -179,10 +179,26 @@ class Welcome extends CI_Controller
 
     public function insertTestData($RowsInserted = 100)
     {
-        /* Prepare some fake data (10000 rows, 40,000 values total) */
-        $rows = array_fill(0, $RowsInserted, ['34239', '102438', "Test Message!", date('Y-m-d H:i:s')]);
-        $columns = ['handle', 'name', 'bio', 'created_at'];
-        return $this->insert_rows('demos', $columns, $rows);
+        $maxRows = 10000;
+        $blocks = 1;
+        if ($RowsInserted > $maxRows) {
+            $blocks = ceil($RowsInserted/$maxRows);
+        }
+        for ($i = 1; $i <= $blocks; $i++) {
+            $total = $maxRows;
+            if ($i === $blocks) {
+                $total = $RowsInserted - ($blocks - 1)*$maxRows;
+            }
+            /* Prepare some fake data (10000 rows, 40,000 values total) */
+            $rows = $this->generateRows(0, $total);
+            $columns = ['handle', 'name', 'bio', 'created_at'];
+            $this->insert_rows('demos', $columns, $rows);
+        }
+    }
+
+    private function generateRows($start = 0, $total = 10000)
+    {
+        return array_fill($start, $total, ['34239', '102438', "Test Message!", date('Y-m-d H:i:s')]);
     }
 
     /**
