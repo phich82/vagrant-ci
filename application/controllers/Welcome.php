@@ -50,14 +50,39 @@ class Welcome extends CI_Controller
         var_dump('Executed: '.round($spend, 2).' second(s)');
         */
 
-        //* insert batch
+        /* insert batch
         $s = microtime(true); // return seconds
         $this->insertTestData(1000000);
         $e = microtime(true); // return seconds
         $spend = ($e - $s);
         var_dump('Executed: '.round($spend, 2).' second(s)', $this->db->error());
-        //*/
+        */
+
+        $data = $this->dumpDataInsertMany(1500);
+        $constraints = ['company_code', 'store_code', 'order_id'];
+        $condtions = ['qty' => ['is not null', '']];
+
+        var_dump($this->updateOrInsertMany($data, $constraints, $condtions, 500));
+
         $this->load->view('welcome_message');
+    }
+
+    private function dumpDataInsertMany($total = 100)
+    {
+        $out = [];
+        for ($i=1; $i <= $total; $i++) {
+            $out[] = [
+                'company_code' => 'c00001',
+                'store_code'   => '001',
+                'order_id'     => 'A'.substr('000000000'.$i, -9),
+                'first_name'   => 'Jhp '.$i,
+                'last_name'    => 'Phich '.$i,
+                'qty'          => $i,
+                'created_at'   => date('Ymd H:i:s'),
+                'updated_at'   => date('Ymd H:i:s'),
+            ];
+        }
+        return $out;
     }
 
     public function updateOrInsert($table, $params = [], $conditions = [])
@@ -117,6 +142,7 @@ class Welcome extends CI_Controller
         foreach ($conditions ?: [] as $k => $v) {
             $where .= $prefix.$k.'='.$this->escape($v, $db).$and;
         }
+        // remove string ' and ' at the end of $where string
         if (!empty($where)) {
             $where = ' where '.preg_replace('/(.*)(\s)+'.trim($and).'(\s)+$/', '$1', $where);
         }
@@ -239,15 +265,95 @@ class Welcome extends CI_Controller
         return $this->db->simple_query($sql);
     }
 
-    private  function escape_value(&$value)
+    private  function escape_value($value, $key = null, $db = null)
     {
-        if (is_string($value)) {
-            $value = $this->escape($value);
-        }
+        return $this->escape($value, $db);
     }
 
     private function prepare_column_name(&$name)
     {
         $name = "$name";
+    }
+
+    public function updateOrInsertMany($data = [], $constraints = [], $conditions = [], $batch = 100, $prefix = '')
+    {
+        if (empty($data) || empty($constraints) || $batch <= 0) {
+            return false;
+        }
+
+        $this->load->database();
+
+        $table   = "orders";
+        $chunks  = array_chunk($data, $batch);
+        $columns = array_keys($data[0]);
+        $set   = [];
+        $where = '';
+        $affected_rows = 0;
+
+        // check UPDATE clause & columns
+        foreach ($columns as $k => $column) {
+            $columns[$k] = $prefix.$column;
+            $set[] = $prefix.$column.' = excluded.'.$prefix.$column;
+        }
+
+        // check WHERE clause
+        if (is_array($conditions)) {
+            $whereArray = [];
+            foreach ($conditions as $column => $value) {
+                $whereArray[] = $table.".".$column.(is_array($value) ? " ".$value[0]." ".($value[1] ? $this->db->escape($value[1]) : "") : " = ".$this->db->escape($value));
+            }
+
+            if (!empty($whereArray)) {
+                $where = " WHERE ".implode(' AND ', $whereArray);
+            }
+        } elseif (is_string($conditions) && $conditions) {
+            $where = " WHERE ".$conditions;
+        }
+
+        foreach ($chunks as $chunk) {
+            // check values for insertion
+            $values = $this->_prepareValuesForInsert($chunk);
+
+            $sql  = "INSERT INTO $table (".implode(',', $columns).")";
+            $sql .= " VALUES ".implode(', ', $values);
+            $sql .= " ON CONFLICT (".implode(',', $constraints).")";
+            $sql .= " DO UPDATE SET ".implode(', ', $set);
+            $sql .= $where;
+
+            $this->db->query($sql);
+
+            $affected_rows += $this->db->affected_rows();
+        }
+
+        return $affected_rows;
+    }
+
+    /**
+     * Prepare values for insertion
+     *
+     * @param  mixed $params
+     *
+     * @return array
+     */
+    private function _prepareValuesForInsert($params = [])
+    {
+        // $values = [];
+        // // check values for insertion
+        // foreach ($params as $row) {
+        //     $valueArray = [];
+        //     foreach ($row as $value) {
+        //         $valueArray[] = $this->db->escape($value);
+        //     }
+        //     $values[] = '('.implode(',', $valueArray).')';
+        // }
+        // return $values;
+
+        return array_reduce($params, function ($carry, $item) {
+            array_walk($item, function (&$value, $key) {
+                $value = $this->db->escape($value);
+            });
+            $carry[] = '('.implode(',', $item).')';
+            return $carry;
+        });
     }
 }
