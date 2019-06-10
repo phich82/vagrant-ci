@@ -32,3 +32,4 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 
 .history/
 .editorconfig
+/vagrant/ServerAgent-2.2.3
